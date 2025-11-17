@@ -9,6 +9,8 @@ from decimal import Decimal
 from datetime import datetime
 import logging
 
+from ..url_validator import URLValidator
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,15 +80,28 @@ class LighterBase:
         self.account_index = config.get("account_index", 0)
         self.api_key_index = config.get("api_key_index", 0)
 
-        # URL配置
+        # URL配置 - 🔥 安全修复：使用白名单验证 URL
         self.base_url = self.TESTNET_URL if self.testnet else self.MAINNET_URL
         self.ws_url = self.TESTNET_WS_URL if self.testnet else self.MAINNET_WS_URL
 
-        # 覆盖URL（如果配置中提供）
-        if "api_url" in config:
-            self.base_url = config["api_url"]
-        if "ws_url" in config:
-            self.ws_url = config["ws_url"]
+        # 尝试从配置中读取 URL，但必须通过白名单验证
+        config_api_url = config.get("api_url")
+        if config_api_url:
+            if URLValidator.is_allowed_url('lighter', config_api_url, self.testnet, False):
+                self.base_url = config_api_url
+            else:
+                logger.warning(
+                    f"⚠️ 配置中的 api_url '{config_api_url}' 不在白名单中，使用默认值: {self.base_url}"
+                )
+
+        config_ws_url = config.get("ws_url")
+        if config_ws_url:
+            if URLValidator.is_allowed_url('lighter', config_ws_url, self.testnet, True):
+                self.ws_url = config_ws_url
+            else:
+                logger.warning(
+                    f"⚠️ 配置中的 ws_url '{config_ws_url}' 不在白名单中，使用默认值: {self.ws_url}"
+                )
 
         # 🔥 确保ws_url不为None
         if not self.ws_url:
