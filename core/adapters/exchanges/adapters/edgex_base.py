@@ -6,10 +6,12 @@ EdgeX基础工具类 - 重构版
 """
 
 import time
+import logging
 from decimal import Decimal
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
+from ..url_validator import URLValidator
 from ..models import (
     TickerData, OrderBookData, TradeData, BalanceData, OrderData, 
     OrderSide, OrderType, OrderStatus, PositionData, PositionSide,

@@ -7,10 +7,12 @@ Backpack基础功能模块 - 重构版
 
 import time
 import decimal
+import logging
 from typing import Dict, List, Optional, Any, Union
 from decimal import Decimal
 from datetime import datetime
 
+from ..url_validator import URLValidator
 from ..models import (
     TickerData, OrderBookData, TradeData, BalanceData, OrderData, 
     OrderSide, OrderType, OrderStatus, PositionData, PositionSide,
@@ -53,9 +55,32 @@ class BackpackBase:
         self.config = config
         self.logger = None
         
-        # 基础配置
-        self.base_url = getattr(config, 'base_url', None) or self.DEFAULT_BASE_URL
-        self.ws_url = getattr(config, 'ws_url', None) or self.DEFAULT_WS_URL
+        # 基础配置 - 🔥 安全修复：使用白名单验证 URL
+        testnet = getattr(config, 'testnet', False) if config else False
+        
+        config_base_url = getattr(config, 'base_url', None) if config else None
+        config_ws_url = getattr(config, 'ws_url', None) if config else None
+        
+        # 初始化为默认值
+        self.base_url = self.DEFAULT_BASE_URL
+        self.ws_url = self.DEFAULT_WS_URL
+        
+        # 验证并应用配置中的 URL
+        if config_base_url:
+            if URLValidator.is_allowed_url('backpack', config_base_url, testnet, False):
+                self.base_url = config_base_url
+            else:
+                logging.warning(
+                    f"⚠️ 配置中的 base_url '{config_base_url}' 不在白名单中，使用默认值: {self.base_url}"
+                )
+        
+        if config_ws_url:
+            if URLValidator.is_allowed_url('backpack', config_ws_url, testnet, True):
+                self.ws_url = config_ws_url
+            else:
+                logging.warning(
+                    f"⚠️ 配置中的 ws_url '{config_ws_url}' 不在白名单中，使用默认值: {self.ws_url}"
+                )
         
         # 确保URL以正确的格式结尾
         if not self.base_url.endswith('/'):

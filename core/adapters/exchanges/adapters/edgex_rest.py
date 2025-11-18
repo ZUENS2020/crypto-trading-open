@@ -6,11 +6,13 @@ EdgeX REST API模块
 
 import time
 import aiohttp
+import logging
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
 from datetime import datetime
 
 from .edgex_base import EdgeXBase
+from ..url_validator import URLValidator
 from ..models import (
     BalanceData, OrderData, OrderStatus, OrderSide, OrderType, PositionData, TradeData
 )
@@ -25,7 +27,24 @@ class EdgeXRest(EdgeXBase):
         self.session = None
         self.api_key = getattr(config, 'api_key', '') if config else ''
         self.api_secret = getattr(config, 'api_secret', '') if config else ''
-        self.base_url = getattr(config, 'base_url', self.DEFAULT_BASE_URL) if config else self.DEFAULT_BASE_URL
+        
+        # 🔥 安全修复：使用白名单验证 URL
+        testnet = getattr(config, 'testnet', False) if config else False
+        config_base_url = getattr(config, 'base_url', None) if config else None
+        
+        # 初始化为默认值
+        self.base_url = self.DEFAULT_BASE_URL
+        
+        # 验证并应用配置中的 URL
+        if config_base_url:
+            if URLValidator.is_allowed_url('edgex', config_base_url, testnet, False):
+                self.base_url = config_base_url
+            else:
+                if logger:
+                    logger.warning(
+                        f"⚠️ 配置中的 base_url '{config_base_url}' 不在白名单中，使用默认值: {self.base_url}"
+                    )
+        
         self.is_authenticated = False
 
     async def setup_session(self):

@@ -8,11 +8,13 @@ Hyperliquid交易所基础模块 - 重构版
 import time
 import asyncio
 import yaml
+import logging
 from pathlib import Path
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
+from ..url_validator import URLValidator
 from ....logging import get_logger
 
 
@@ -66,10 +68,33 @@ class HyperliquidBase:
         self._market_info = {}
 
     def _setup_urls(self):
-        """设置API URL"""
+        """设置API URL - 🔥 安全修复：使用白名单验证 URL"""
         if self.config:
-            self.base_url = self.config.base_url or self.DEFAULT_REST_URL
-            self.ws_url = self.config.ws_url or self.DEFAULT_WS_URL
+            # 获取配置中的 URL，但需要通过白名单验证
+            config_base_url = getattr(self.config, 'base_url', None)
+            config_ws_url = getattr(self.config, 'ws_url', None)
+            testnet = getattr(self.config, 'testnet', False)
+            
+            # 初始化为默认值
+            self.base_url = self.DEFAULT_REST_URL
+            self.ws_url = self.DEFAULT_WS_URL
+            
+            # 验证并应用配置中的 URL
+            if config_base_url:
+                if URLValidator.is_allowed_url('hyperliquid', config_base_url, testnet, False):
+                    self.base_url = config_base_url
+                else:
+                    logging.warning(
+                        f"⚠️ 配置中的 base_url '{config_base_url}' 不在白名单中，使用默认值: {self.base_url}"
+                    )
+            
+            if config_ws_url:
+                if URLValidator.is_allowed_url('hyperliquid', config_ws_url, testnet, True):
+                    self.ws_url = config_ws_url
+                else:
+                    logging.warning(
+                        f"⚠️ 配置中的 ws_url '{config_ws_url}' 不在白名单中，使用默认值: {self.ws_url}"
+                    )
         else:
             self.base_url = self.DEFAULT_REST_URL
             self.ws_url = self.DEFAULT_WS_URL
